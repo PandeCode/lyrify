@@ -11,11 +11,13 @@ Lyrify is a lightweight server that fetches and serves real-time song lyrics for
 
 ## **Requirements**
 
-- **Go** (1.17+)
+- **Go** (1.23+)
 - **playerctl** (configured to work with Spotify)
 - Spotify desktop client running
 
 ## **Installation**
+
+Build Artifacts in releases/tags.
 
 1. Clone this repository:
 

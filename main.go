@@ -17,15 +17,13 @@ import (
 )
 
 const (
-	redirectURI = "http://localhost:8888/callback"
-	sleepSecs   = 1
-
-	addr = ":8888"
+	sleepSecs = 1
 )
 
 var (
 	cacheDir string
 
+	addr          string = ":8888"
 	line          string = "Loading..."
 	currentURL    string = ""
 	currentLyrics Lyrics
@@ -44,6 +42,16 @@ type Lyrics []struct {
 }
 
 func main() {
+	_, err := exec.LookPath("playerctl")
+	if err != nil {
+		log.Fatalf("playerctl is not installed: %v", err)
+	}
+
+	_addr := os.Getenv("LYRIFY_ADDR")
+	if addr != "" {
+		addr = _addr
+	}
+
 	cacheDir = filepath.Join(os.Getenv("HOME"), ".cache/lyrify")
 	startServer()
 }
@@ -92,7 +100,7 @@ func startServer() {
 		hperr(err)
 	}()
 
-	fmt.Print("Starting server on 8888...")
+	fmt.Printf("Starting server on localhost%s ...", addr)
 	for {
 		time.Sleep(sleepSecs * time.Second)
 
@@ -107,6 +115,11 @@ func startServer() {
 		}
 
 		lyrics := getLyrics(name, artists)
+
+		if len(lyrics) == 0 {
+			line = "🎼"
+			continue
+		}
 
 		synced := lyrics[0].SyncedLyrics
 		plain := lyrics[0].PlainLyrics

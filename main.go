@@ -48,7 +48,7 @@ func main() {
 	}
 
 	_addr := os.Getenv("LYRIFY_ADDR")
-	if addr != "" {
+	if _addr != "" {
 		addr = _addr
 	}
 

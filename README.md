@@ -2,6 +2,8 @@
 
 Lyrify is a lightweight server that fetches and serves real-time song lyrics for tracks playing on Spotify using `playerctl`.
 
+Additional scripts to fetch lyrics.
+
 ## **How It works**
 
 - `playerctl` to get current song info.

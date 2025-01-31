@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	sleepSecs = 1
+	sleepTime  = 1 * time.Second
 )
 
 var (
@@ -102,7 +102,7 @@ func startServer() {
 
 	fmt.Printf("Starting server on localhost%s ...", addr)
 	for {
-		time.Sleep(sleepSecs * time.Second)
+		time.Sleep(sleepTime)
 
 		var name, artists string
 		var progress, duration int

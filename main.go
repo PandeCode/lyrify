@@ -14,19 +14,32 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"sync"
+
+	"github.com/godbus/dbus/v5"
 )
 
 const (
-	sleepTime  = 1 * time.Second
+	sleepTime = 1 * time.Second
 )
 
 var (
 	cacheDir string
 
-	addr          string = ":8888"
-	line          string = "Loading..."
-	currentURL    string = ""
+	loadingText = "⸜(｡˃ ᵕ ˂ )⸝♡"
+
+	addr       string = ":8888"
+	line       string = loadingText
+	currentURL string = ""
+
+	prevSong      string
 	currentLyrics Lyrics
+
+	connOnce sync.Once
+	conn     *dbus.Conn
+	connErr  error
+	obj      dbus.BusObject
 )
 
 type Lyrics []struct {
@@ -114,7 +127,14 @@ func startServer() {
 			continue
 		}
 
-		lyrics := getLyrics(name, artists)
+		n_a := (name + artists)
+		if n_a != prevSong {
+			line = loadingText
+		} else {
+			prevSong = n_a
+		}
+
+		lyrics := getLyrics(n_a)
 
 		if len(lyrics) == 0 {
 			line = "🎼"
@@ -153,9 +173,9 @@ func hashStr(s string) string {
 	return fmt.Sprint(h.Sum32())
 }
 
-func getLyrics(name string, artists string) Lyrics {
+func getLyrics(song string) Lyrics {
 	params := url.Values{}
-	params.Add("q", name+" "+artists)
+	params.Add("q", song)
 	url := "https://lrclib.net/api/search?" + params.Encode()
 
 	if currentURL == url {
@@ -173,7 +193,7 @@ func getLyrics(name string, artists string) Lyrics {
 		body, err = io.ReadAll(resp.Body)
 		herr(err)
 
-		os.WriteFile(file, body, 0644)
+		go os.WriteFile(file, body, 0644)
 	} else {
 		body = b
 	}
@@ -183,18 +203,55 @@ func getLyrics(name string, artists string) Lyrics {
 }
 
 func getMprisInfo() (string, string, int, int, bool) {
-	res, err := exec.Command("playerctl", "-p", "spotify", "metadata", "--format", "{{title}}\n{{artist}}\n{{position}}\n{{mpris:length}}").Output()
-
-	_data := string(res)
-	if err != nil || _data == "No players found" {
+	connOnce.Do(func() {
+		conn, connErr = dbus.SessionBus()
+	})
+	if connErr != nil {
 		return "", "", 0, 0, false
 	}
-	data := strings.Split(_data, "\n")
 
-	name := data[0]
-	artists := data[1]
-	progress, err := strconv.Atoi(data[2])
-	duration, err := strconv.Atoi(data[3])
+	if obj == nil {
+		obj = conn.Object("org.mpris.MediaPlayer2.spotify", "/org/mpris/MediaPlayer2")
+	}
 
-	return name, artists, int(float32(progress) * 0.001), int(float32(duration) * 0.001), true
+	var playbackStatus string
+	err := obj.Call("org.freedesktop.DBus.Properties.Get", 0,
+		"org.mpris.MediaPlayer2.Player", "PlaybackStatus").Store(&playbackStatus)
+	if err != nil {
+		return "", "", 0, 0, false
+	}
+
+	var metadata map[string]dbus.Variant
+	err = obj.Call("org.freedesktop.DBus.Properties.Get", 0,
+		"org.mpris.MediaPlayer2.Player", "Metadata").Store(&metadata)
+	if err != nil {
+		return "", "", 0, 0, false
+	}
+
+	var title, artists string
+	if titleVar, ok := metadata["xesam:title"]; ok {
+		title, _ = titleVar.Value().(string)
+	}
+	if artistVar, ok := metadata["xesam:artist"]; ok {
+		if artistsSlice, ok := artistVar.Value().([]string); ok {
+			artists = strings.Join(artistsSlice, ", ")
+		}
+	}
+
+	var length int64
+	if lengthVar, ok := metadata["mpris:length"]; ok {
+		length, _ = lengthVar.Value().(int64)
+	}
+
+	var position int64
+	err = obj.Call("org.freedesktop.DBus.Properties.Get", 0,
+		"org.mpris.MediaPlayer2.Player", "Position").Store(&position)
+	if err != nil {
+		return "", "", 0, 0, false
+	}
+
+	progress := int(float32(position) * 0.001)
+	duration := int(float32(length) * 0.001)
+
+	return title, artists, progress, duration, true
 }

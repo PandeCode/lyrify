@@ -6,7 +6,6 @@ Additional scripts to fetch lyrics.
 
 ## **How It works**
 
-- `playerctl` to get current song info.
 - Fetches song lyrics (plain or synchronized) from the [Lrclib](https://lrclib.net/) API.
 - Displays the current line of lyrics via a local HTTP endpoint.
 - Caches API results to reduce redundant requests (~/.cache/lyrify).
@@ -14,7 +13,6 @@ Additional scripts to fetch lyrics.
 ## **Requirements**
 
 - **Go** (1.23+)
-- **playerctl** (configured to work with Spotify)
 - Spotify desktop client running
 
 ## **Installation**
